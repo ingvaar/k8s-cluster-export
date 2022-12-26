@@ -1,14 +1,16 @@
 #!/bin/bash
-# 
+#
 # k8s-cluster-export
-# Modified:  2022-11-06
+# Modified:  2022-12-20
 # purpose:   move kubernetes resources to an other cluster
 #            (and if requested import to an other namespace)
-# 
-# Modified by Thibaud B. https://github.com/ingvaar
+#
+# Modified by
+#  - Michael Zervakis m.zervakis@infinitum.gr
+#  - Thibaud B ingvaar@pm.me
 #
 # forked from https://github.com/tmattausch/k8s-cluster-export
-# author:    Thomas Mattausch (thomas@mattausch.org) 
+# author:    Thomas Mattausch (thomas@mattausch.org)
 
 set -e
 set -o errtrace     # Inherit ERR trap from shell functions
@@ -44,7 +46,7 @@ available_resources=(
 available_cluster_resources=(
   sc        # storage.k8s.io  StorageClass
   pv        # storage.k8s.io  Persistent Volumes
-  psp       # policy          PodSecurityPolicy
+  # psp       # policy          PodSecurityPolicy  # Deprecated
   clusterroles          # rbac.authorization.k8s.io
   clusterrolebindings   # rbac.authorization.k8s.io
 )
@@ -52,13 +54,13 @@ available_cluster_resources=(
 display_help() {
 echo "
 USAGE: k8s-export.sh -n namespace [-h] [-r resource-1] [-r resource-2] [-c new-namespace] [-i inputfile (e.g. deploy)] [-i pvc]
-description     This script will export kubernetes resource configs the exported resources can be 
+description     This script will export kubernetes resource configs the exported resources can be
                 limited with -r to a specefic resource type (e.g. -r pvc -r sv).
                 And can be limited with -i to a subset of resources in that namespace.
                 parameter:
                 -n:   set source to namespace
-                -g:   set source to cluster 
-                -r:   limit resources to specified types (can be repeated multiple times) 
+                -g:   set source to cluster
+                -r:   limit resources to specified types (can be repeated multiple times)
                 -i:   limit exported resources to input file (new line serparted)
                       the input file must match the name of the resource (can be repeated multiple times)
                 -c:   change namespace to specified value
@@ -89,7 +91,7 @@ while getopts ':n:r:i:c:gh' opt; do
              exit 1
            else
              CLUSTER=1
-           fi             
+           fi
            ;;
         h) display_help
            exit 0 ;;
@@ -132,6 +134,7 @@ function main {
 function export_config {
   export_resources=("$@")
   echo -e "\n${BLUE}⎈ ⎈ ☃ ⎈ ⎈\n${NC}"
+  echo "$@"
   status_output "start export resources for ns $NAMESPACE" "step"
 
   if [ -n "$NAMESPACE" ]; then
@@ -139,8 +142,9 @@ function export_config {
   else
     mkdir -p $SOURCE/cluster
   fi
-  
+
   for r in "${export_resources[@]}"; do
+
     $r
   done
 }
@@ -268,11 +272,11 @@ function set_targets {
 function remove_status {
   # reset status
   if [[ " (pvc deploy quota limits job) " =~ " $TYPE " ]]; then
-    yq -i "del(.$status)" $RESULT ; echo 'status: {}' >> $RESULT
+    yq -i "del(.status)" $RESULT ; echo 'status: {}' >> $RESULT
   elif [ $TYPE == "sts" ]; then
-    yq -i "del(.$status)" $RESULT ; echo -e 'status:\n  replicas: 0' >> $RESULT
+    yq -i "del(.status)" $RESULT ; echo -e 'status:\n  replicas: 0' >> $RESULT
   elif [ $TYPE == "svc" ] || [ $TYPE == "ing" ]; then
-    yq -i "del(.$status)" $RESULT ; echo -e 'status:\n  loadBalancer: {}' >> $RESULT
+    yq -i "del(.status)" $RESULT ; echo -e 'status:\n  loadBalancer: {}' >> $RESULT
   fi
 }
 
@@ -280,7 +284,7 @@ function export_resource {
   status_output "export $1" "ok"
   TYPE="$1"
   set_targets "$TYPE"
-  
+
   if [ -n "$NAMESPACE" ]; then
     kubectl_namespace="-n ${NAMESPACE}"
     mkdir -p $SOURCE/$NAMESPACE/$2_$1
@@ -346,7 +350,7 @@ function cm {
   )
   export_resource "cm" "03" "${remove[@]}"
 }
- 
+
 function secrets {
   remove=(
     ${objectmeta_v1[@]}
@@ -363,7 +367,7 @@ function deploy {
 }
 
 function sts {
-  #get statefulsets 
+  #get statefulsets
   remove=(
     ${objectmeta_v1[@]}
   )
