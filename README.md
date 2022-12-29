@@ -31,7 +31,6 @@ available_resources=(
 available_cluster_resources=(
   sc
   pv
-  psp
   clusterroles
   clusterrolebindings
 )
@@ -42,8 +41,8 @@ USAGE: k8s-export.sh {-n namespace [-c new-namespace] | -g} [-h] [-k kubeconfig]
 This script will export kubernetes resource configs the exported resources can be limited with -r to a specefic resource type (e.g. -r pvc -r sv). And can be limited with -i to a subset of resources in that namespace.
 Arguments
 -n:   set source to namespace
--g:   set source to cluster 
--r:   limit resources to specified types (can be repeated multiple times) 
+-g:   set source to cluster
+-r:   limit resources to specified types (can be repeated multiple times)
 -i:   limit exported resources to input file (new line serparted) the input file must match the name of the resource (can be repeated multiple times)
 -c:   change namespace to specified value
 -k:   path to kubectl kubeconfig file
